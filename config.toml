@@ -1,0 +1,28 @@
+# 0verwatch configuration
+# Place at ~/.config/0verwatch/0verwatch.toml, ~/.0verwatch.toml,
+# ./0verwatch.toml, or pass via --config PATH
+
+[modules]
+kernel = true
+cpu = true
+memory = true
+daemons = true
+disk = true
+network = true
+security = true
+processes = true
+logs = true
+gpu = true
+
+[thresholds]
+# percentages 0-100
+cpu_critical = 90
+cpu_warning = 75
+mem_critical = 90
+mem_warning = 75
+disk_critical = 90
+disk_warning = 75
+# load average considered critical is logical_cores * load_avg_factor
+load_avg_factor = 0.7
+max_zombies = 0
+max_failed_services = 0
