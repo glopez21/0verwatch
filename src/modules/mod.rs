@@ -1,14 +1,14 @@
-pub mod util;
-pub mod kernel;
 pub mod cpu;
-pub mod memory;
 pub mod daemons;
 pub mod disk;
-pub mod network;
-pub mod security;
-pub mod processes;
-pub mod logs;
 pub mod gpu;
+pub mod kernel;
+pub mod logs;
+pub mod memory;
+pub mod network;
+pub mod processes;
+pub mod security;
+pub mod util;
 
 use crate::config::ThresholdConfig;
 use crate::report::ModuleReport;
@@ -26,7 +26,9 @@ pub fn run_module(name: &str, thresholds: &ThresholdConfig) -> ModuleReport {
         "processes" => processes::inspect(&mut rep),
         "logs" => logs::inspect(&mut rep),
         "gpu" => gpu::inspect(&mut rep),
-        _ => { rep.info(format!("unknown module: {}", name)); }
+        _ => {
+            rep.info(format!("unknown module: {}", name));
+        }
     }
     rep
 }

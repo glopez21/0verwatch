@@ -45,9 +45,65 @@ A wrapper at `~/.local/bin/0verwatch` (already created) runs the release build:
 0verwatch --watch 2       # refresh every 2s
 0verwatch --config path   # use a specific config file
 0verwatch --no-color      # disable ANSI
+0verwatch --eventflow-url https://eventflow.example.com   # push telemetry
 ```
 
 Exit code reflects health: 0 = healthy (≥90), 1 = degraded/warning (≥40), 2 = critical (<40).
+
+## Telemetry (EventFlow / Augur)
+
+When given an EventFlow base URL, 0verwatch `POST`s a `host_health` event after
+each survey to `{EVENTFLOW_URL}/api/ingest/host_health`:
+
+```bash
+0verwatch --eventflow-url https://eventflow.example.com \
+          --eventflow-api-key "$EVENTFLOW_API_KEY" \
+          --eventflow-tenant-id "$AUGUR_TENANT_ID"
+```
+
+Flags (each also reads an environment variable):
+
+| Flag | Environment | Purpose |
+|---|---|---|
+| `--eventflow-url` | `EVENTFLOW_URL` | EventFlow base URL (enables telemetry) |
+| `--eventflow-api-key` | `EVENTFLOW_API_KEY` | sent as `X-API-Key` header |
+| `--eventflow-tenant-id` | `AUGUR_TENANT_ID` | sent as `X-Tenant-ID` header |
+
+Payload:
+
+```json
+{
+  "overall_score": 86,
+  "hostname": "node-1",
+  "modules": [
+    { "name": "kernel", "score": 79, "findings": [["warning", "..."]] }
+  ]
+}
+```
+
+Push failures are logged to stderr and never abort the local report.
+
+## Deploy as a systemd timer
+
+`deploy/install.sh` builds the release binary, installs it to
+`/usr/local/bin/0verwatch`, and installs a hardened oneshot service plus a timer
+that runs a survey every 5 minutes (posting to EventFlow if configured).
+
+```bash
+sudo ./deploy/install.sh                    # build + install + enable timer
+sudo INTERVAL=1min ./deploy/install.sh      # run every minute
+sudo NO_TIMER=1 ./deploy/install.sh         # install binary only
+sudo UNINSTALL=1 ./deploy/install.sh        # remove units + binary
+```
+
+Configure telemetry by editing `/etc/0verwatch/eventflow.env` (installed from
+`deploy/eventflow.env.example`) and uncommenting `EVENTFLOW_URL` etc.
+
+```bash
+sudo systemctl status 0verwatch.timer
+sudo systemctl start 0verwatch.service      # run one survey now
+journalctl -u 0verwatch.service -f          # watch telemetry runs
+```
 
 ## Configuration
 
@@ -87,7 +143,8 @@ arguments. It also offers a `json_report()` helper for programmatic use.
 
 ## Dependencies
 
-Rust crates: `clap`, `serde`, `serde_json`, `anyhow`, `sysinfo`, `toml`, `libc`.
+Rust crates: `clap`, `serde`, `serde_json`, `anyhow`, `sysinfo`, `toml`, `libc`,
+`reqwest`.
 External tools (auto-detected, optional): `dmesg`, `systemctl`, `df`, `smartctl`,
 `lspci`, `nvidia-smi`, `rocm-smi`, `intel_gpu_top`, `journalctl`, `ss`.
 

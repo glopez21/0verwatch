@@ -60,16 +60,19 @@ pub fn post_to_eventflow(cfg: &EventFlowConfig, report: &Report) -> Result<()> {
         headers.insert("X-Tenant-ID", tid.parse()?);
     }
 
-    let resp = client
-        .post(&url)
-        .headers(headers)
-        .json(&payload)
-        .send()?;
+    let resp = client.post(&url).headers(headers).json(&payload).send()?;
 
     if resp.status().is_success() {
-        eprintln!("0verwatch: posted host_health to EventFlow ({})", resp.status());
+        eprintln!(
+            "0verwatch: posted host_health to EventFlow ({})",
+            resp.status()
+        );
         Ok(())
     } else {
-        anyhow::bail!("EventFlow returned {}: {}", resp.status(), resp.text().unwrap_or_default())
+        anyhow::bail!(
+            "EventFlow returned {}: {}",
+            resp.status(),
+            resp.text().unwrap_or_default()
+        )
     }
 }

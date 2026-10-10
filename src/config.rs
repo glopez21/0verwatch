@@ -1,7 +1,7 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashSet;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, Default)]
 pub struct Config {
     #[serde(default)]
     pub modules: ModuleConfig,
@@ -55,41 +55,65 @@ pub struct ThresholdConfig {
     pub max_failed_services: usize,
 }
 
-fn default_true() -> bool { true }
-fn default_cpu_crit() -> f64 { 90.0 }
-fn default_cpu_warn() -> f64 { 75.0 }
-fn default_mem_crit() -> f64 { 90.0 }
-fn default_mem_warn() -> f64 { 75.0 }
-fn default_disk_crit() -> f64 { 90.0 }
-fn default_disk_warn() -> f64 { 75.0 }
-fn default_load_factor() -> f64 { 0.7 }
-fn default_max_zombies() -> usize { 0 }
-fn default_max_failed() -> usize { 0 }
-
-impl Default for Config {
-    fn default() -> Self {
-        Config {
-            modules: ModuleConfig::default(),
-            thresholds: ThresholdConfig::default(),
-        }
-    }
+fn default_true() -> bool {
+    true
 }
+fn default_cpu_crit() -> f64 {
+    90.0
+}
+fn default_cpu_warn() -> f64 {
+    75.0
+}
+fn default_mem_crit() -> f64 {
+    90.0
+}
+fn default_mem_warn() -> f64 {
+    75.0
+}
+fn default_disk_crit() -> f64 {
+    90.0
+}
+fn default_disk_warn() -> f64 {
+    75.0
+}
+fn default_load_factor() -> f64 {
+    0.7
+}
+fn default_max_zombies() -> usize {
+    0
+}
+fn default_max_failed() -> usize {
+    0
+}
+
 impl Default for ModuleConfig {
     fn default() -> Self {
         ModuleConfig {
-            kernel: true, cpu: true, memory: true, daemons: true,
-            disk: true, network: true, security: true, processes: true,
-            logs: true, gpu: true,
+            kernel: true,
+            cpu: true,
+            memory: true,
+            daemons: true,
+            disk: true,
+            network: true,
+            security: true,
+            processes: true,
+            logs: true,
+            gpu: true,
         }
     }
 }
 impl Default for ThresholdConfig {
     fn default() -> Self {
         ThresholdConfig {
-            cpu_critical: 90.0, cpu_warning: 75.0,
-            mem_critical: 90.0, mem_warning: 75.0,
-            disk_critical: 90.0, disk_warning: 75.0,
-            load_avg_factor: 0.7, max_zombies: 0, max_failed_services: 0,
+            cpu_critical: 90.0,
+            cpu_warning: 75.0,
+            mem_critical: 90.0,
+            mem_warning: 75.0,
+            disk_critical: 90.0,
+            disk_warning: 75.0,
+            load_avg_factor: 0.7,
+            max_zombies: 0,
+            max_failed_services: 0,
         }
     }
 }
@@ -100,10 +124,7 @@ impl Config {
             let content = std::fs::read_to_string(p)?;
             return Ok(toml::from_str(&content)?);
         }
-        let mut candidates: Vec<String> = vec![
-            "./0verwatch.toml".into(),
-            "./config.toml".into(),
-        ];
+        let mut candidates: Vec<String> = vec!["./0verwatch.toml".into(), "./config.toml".into()];
         if let Ok(h) = std::env::var("HOME") {
             candidates.push(format!("{}/.config/0verwatch/0verwatch.toml", h));
             candidates.push(format!("{}/.0verwatch.toml", h));
@@ -122,7 +143,9 @@ impl Config {
         let mut out = Vec::new();
         macro_rules! push_if {
             ($e:expr, $n:expr) => {
-                if $e { out.push($n); }
+                if $e {
+                    out.push($n);
+                }
             };
         }
         push_if!(self.modules.kernel, "kernel");

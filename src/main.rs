@@ -9,9 +9,17 @@ use report::{ModuleReport, Report};
 use std::process::ExitCode;
 
 #[derive(Debug, Parser)]
-#[command(name = "0verwatch", version, about = "Comprehensive system health assessment")]
+#[command(
+    name = "0verwatch",
+    version,
+    about = "Comprehensive system health assessment"
+)]
 struct Cli {
-    #[arg(short = 'm', long = "modules", help = "Comma-separated module list to run (default: all)")]
+    #[arg(
+        short = 'm',
+        long = "modules",
+        help = "Comma-separated module list to run (default: all)"
+    )]
     modules: Option<String>,
 
     #[arg(short = 'o', long = "output", value_enum, default_value_t = OutFmt::Text, help = "Output format")]
@@ -35,13 +43,25 @@ struct Cli {
     #[arg(long = "no-color", help = "Disable ANSI colors")]
     no_color: bool,
 
-    #[arg(long = "eventflow-url", env = "EVENTFLOW_URL", help = "EventFlow URL to post host_health events")]
+    #[arg(
+        long = "eventflow-url",
+        env = "EVENTFLOW_URL",
+        help = "EventFlow URL to post host_health events"
+    )]
     eventflow_url: Option<String>,
 
-    #[arg(long = "eventflow-api-key", env = "EVENTFLOW_API_KEY", help = "EventFlow API key")]
+    #[arg(
+        long = "eventflow-api-key",
+        env = "EVENTFLOW_API_KEY",
+        help = "EventFlow API key"
+    )]
     eventflow_api_key: Option<String>,
 
-    #[arg(long = "eventflow-tenant-id", env = "AUGUR_TENANT_ID", help = "Tenant ID for EventFlow/Augur")]
+    #[arg(
+        long = "eventflow-tenant-id",
+        env = "AUGUR_TENANT_ID",
+        help = "Tenant ID for EventFlow/Augur"
+    )]
     eventflow_tenant_id: Option<String>,
 }
 
@@ -63,11 +83,14 @@ fn main() -> ExitCode {
         }
     };
 
-    let ef_cfg = cli.eventflow_url.as_ref().map(|url| eventflow::EventFlowConfig {
-        url: url.clone(),
-        api_key: cli.eventflow_api_key.clone(),
-        tenant_id: cli.eventflow_tenant_id.clone(),
-    });
+    let ef_cfg = cli
+        .eventflow_url
+        .as_ref()
+        .map(|url| eventflow::EventFlowConfig {
+            url: url.clone(),
+            api_key: cli.eventflow_api_key.clone(),
+            tenant_id: cli.eventflow_tenant_id.clone(),
+        });
 
     let interval = cli.watch.unwrap_or(0);
     let once = interval == 0;
@@ -83,7 +106,9 @@ fn main() -> ExitCode {
 
         emit(&cli, &report);
 
-        if once { break; }
+        if once {
+            break;
+        }
 
         if let Some(i) = cli.watch {
             std::thread::sleep(std::time::Duration::from_secs(i));
@@ -93,7 +118,13 @@ fn main() -> ExitCode {
 
     let final_report = build_report(&cli, &cfg);
     let score = final_report.overall_score;
-    let exit = if score >= 90 { 0 } else if score >= 70 { 0 } else if score >= 40 { 1 } else { 2 };
+    let exit = if score >= 90 {
+        0
+    } else if score >= 40 {
+        1
+    } else {
+        2
+    };
     if cli.score {
         if once {
             println!("{}", score);
@@ -112,7 +143,10 @@ fn build_report(cli: &Cli, cfg: &config::Config) -> Report {
     let enabled: Vec<String> = if let Some(ref m) = cli.modules {
         config::parse_module_list(m).into_iter().collect()
     } else {
-        cfg.enabled_modules().into_iter().map(|s| s.to_string()).collect()
+        cfg.enabled_modules()
+            .into_iter()
+            .map(|s| s.to_string())
+            .collect()
     };
 
     for name in &enabled {

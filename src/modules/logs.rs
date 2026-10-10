@@ -9,22 +9,65 @@ pub fn inspect(rep: &mut ModuleReport) {
     let has_journal = which("journalctl") && exists("/run/systemd/journal");
 
     if has_journal {
-        let crit = run("journalctl", &["-p", "emerg", "--no-pager", "--output=cat", "--since", "-24h"])
-            .unwrap_or_default();
+        let crit = run(
+            "journalctl",
+            &[
+                "-p",
+                "emerg",
+                "--no-pager",
+                "--output=cat",
+                "--since",
+                "-24h",
+            ],
+        )
+        .unwrap_or_default();
         let crit_count = crit.lines().filter(|l| !l.is_empty()).count();
-        let crit_samples: Vec<String> = crit.lines().filter(|l| !l.is_empty()).take(20).map(|l| l.chars().take(500).collect()).collect();
+        let crit_samples: Vec<String> = crit
+            .lines()
+            .filter(|l| !l.is_empty())
+            .take(20)
+            .map(|l| l.chars().take(500).collect())
+            .collect();
 
-        let alert = run("journalctl", &["-p", "alert", "--no-pager", "--output=cat", "--since", "-24h"])
-            .unwrap_or_default();
+        let alert = run(
+            "journalctl",
+            &[
+                "-p",
+                "alert",
+                "--no-pager",
+                "--output=cat",
+                "--since",
+                "-24h",
+            ],
+        )
+        .unwrap_or_default();
         let alert_count = alert.lines().filter(|l| !l.is_empty()).count();
 
-        let err = run("journalctl", &["-p", "err", "--no-pager", "--output=cat", "--since", "-24h"])
-            .unwrap_or_default();
+        let err = run(
+            "journalctl",
+            &["-p", "err", "--no-pager", "--output=cat", "--since", "-24h"],
+        )
+        .unwrap_or_default();
         let err_count = err.lines().filter(|l| !l.is_empty()).count();
-        let err_samples: Vec<String> = err.lines().filter(|l| !l.is_empty()).take(20).map(|l| l.chars().take(500).collect()).collect();
+        let err_samples: Vec<String> = err
+            .lines()
+            .filter(|l| !l.is_empty())
+            .take(20)
+            .map(|l| l.chars().take(500).collect())
+            .collect();
 
-        let warn = run("journalctl", &["-p", "warning", "--no-pager", "--output=cat", "--since", "-24h"])
-            .unwrap_or_default();
+        let warn = run(
+            "journalctl",
+            &[
+                "-p",
+                "warning",
+                "--no-pager",
+                "--output=cat",
+                "--since",
+                "-24h",
+            ],
+        )
+        .unwrap_or_default();
         let warn_count = warn.lines().filter(|l| !l.is_empty()).count();
 
         data.insert("emerg".into(), json!(crit_count));
@@ -39,10 +82,16 @@ pub fn inspect(rep: &mut ModuleReport) {
         }
 
         if crit_count > 0 {
-            rep.critical(format!("{} emergency-level message(s) in last 24h", crit_count));
+            rep.critical(format!(
+                "{} emergency-level message(s) in last 24h",
+                crit_count
+            ));
         }
         if alert_count > 0 {
-            rep.critical(format!("{} alert-level message(s) in last 24h", alert_count));
+            rep.critical(format!(
+                "{} alert-level message(s) in last 24h",
+                alert_count
+            ));
         }
         if err_count > 50 {
             rep.warning(format!("{} error-level message(s) in last 24h", err_count));
@@ -57,12 +106,16 @@ pub fn inspect(rep: &mut ModuleReport) {
             for e in entries.flatten() {
                 let path = e.path();
                 let name = e.file_name().to_string_lossy().to_string();
-                if !name.ends_with(".log") && !name.ends_with("log") { continue; }
+                if !name.ends_with(".log") && !name.ends_with("log") {
+                    continue;
+                }
                 if let Ok(content) = std::fs::read_to_string(&path) {
                     for line in content.lines().rev().take(10000) {
                         if line.contains(" ERROR") || line.contains(" error:") {
                             err_count += 1;
-                            if err_samples.len() < 20 { err_samples.push(line.chars().take(500).collect()); }
+                            if err_samples.len() < 20 {
+                                err_samples.push(line.chars().take(500).collect());
+                            }
                         } else if line.contains(" WARN") || line.contains(" warning") {
                             warn_count += 1;
                         }

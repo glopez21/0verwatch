@@ -9,12 +9,19 @@ pub fn read_file(path: &str) -> Option<String> {
 
 #[allow(dead_code)]
 pub fn read_file_lossy(path: &str) -> Option<String> {
-    fs::read(path).ok().and_then(|b| String::from_utf8(b).ok()).map(|s| s.trim().to_string())
+    fs::read(path)
+        .ok()
+        .and_then(|b| String::from_utf8(b).ok())
+        .map(|s| s.trim().to_string())
 }
 
 pub fn read_lines(path: &str) -> Vec<String> {
     match fs::read_to_string(path) {
-        Ok(s) => s.lines().map(|l| l.trim().to_string()).filter(|l| !l.is_empty()).collect(),
+        Ok(s) => s
+            .lines()
+            .map(|l| l.trim().to_string())
+            .filter(|l| !l.is_empty())
+            .collect(),
         Err(_) => Vec::new(),
     }
 }
@@ -28,11 +35,13 @@ pub fn run(cmd: &str, args: &[&str]) -> Option<String> {
 }
 
 pub fn run_timeout(cmd: &str, args: &[&str], _timeout: Duration) -> Option<String> {
-    let out = Command::new(cmd).args(args)
+    let out = Command::new(cmd)
+        .args(args)
         .stdin(std::process::Stdio::null())
         .stdout(std::process::Stdio::piped())
         .stderr(std::process::Stdio::null())
-        .output().ok()?;
+        .output()
+        .ok()?;
     if out.status.success() {
         Some(String::from_utf8_lossy(&out.stdout).trim().to_string())
     } else {

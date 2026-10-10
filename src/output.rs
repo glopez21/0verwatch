@@ -62,14 +62,20 @@ fn pretty_name(n: &str) -> &'static str {
 
 fn render_score_bar(label: &str, score: u8) -> String {
     let filled = (score / 10).min(10) as usize;
-    let bar: String = std::iter::repeat('█').take(filled)
-        .chain(std::iter::repeat('░').take(10 - filled))
+    let bar: String = std::iter::repeat_n('█', filled)
+        .chain(std::iter::repeat_n('░', 10 - filled))
         .collect();
-    format!("  {:<14} [{}] {:>3}/100  {}\n", label, bar, score, badge(score))
+    format!(
+        "  {:<14} [{}] {:>3}/100  {}\n",
+        label,
+        bar,
+        score,
+        badge(score)
+    )
 }
 
 fn badge(score: u8) -> &'static str {
-match score {
+    match score {
         90..=u8::MAX => "● HEALTHY",
         70..=89 => "◐ WARNING",
         40..=69 => "◑ DEGRADED",
@@ -91,9 +97,8 @@ fn render_kv(data: &Value) -> String {
     let mut out = String::new();
     match data {
         Value::Object(map) => {
-            let mut rows: Vec<(String, Value)> = map.iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect();
+            let mut rows: Vec<(String, Value)> =
+                map.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
             rows.sort_by(|a, b| a.0.cmp(&b.0));
             for (k, v) in rows {
                 render_entry(&mut out, &k, v, 1);
@@ -114,9 +119,8 @@ fn render_entry(out: &mut String, key: &str, val: Value, depth: usize) {
     match val {
         Value::Object(map) => {
             out.push_str(&format!("{}{}:\n", indent, humanize_key(key)));
-            let mut rows: Vec<(String, Value)> = map.iter()
-                .map(|(k, v)| (k.clone(), v.clone()))
-                .collect();
+            let mut rows: Vec<(String, Value)> =
+                map.iter().map(|(k, v)| (k.clone(), v.clone())).collect();
             rows.sort_by(|a, b| a.0.cmp(&b.0));
             for (k, v) in rows {
                 render_entry(out, &k, v, depth + 1);
@@ -127,7 +131,12 @@ fn render_entry(out: &mut String, key: &str, val: Value, depth: usize) {
                 out.push_str(&format!("{}{}: (none)\n", indent, humanize_key(key)));
             } else if arr.iter().all(|v| !v.is_object()) {
                 let items: Vec<String> = arr.iter().map(|v| v.to_string()).collect();
-                out.push_str(&format!("{}{}: {}\n", indent, humanize_key(key), items.join(", ")));
+                out.push_str(&format!(
+                    "{}{}: {}\n",
+                    indent,
+                    humanize_key(key),
+                    items.join(", ")
+                ));
             } else {
                 out.push_str(&format!("{}{}:\n", indent, humanize_key(key)));
                 for (i, v) in arr.iter().enumerate() {
@@ -136,7 +145,12 @@ fn render_entry(out: &mut String, key: &str, val: Value, depth: usize) {
             }
         }
         Value::Null => out.push_str(&format!("{}{}: —\n", indent, humanize_key(key))),
-        Value::Bool(b) => out.push_str(&format!("{}{}: {}\n", indent, humanize_key(key), if b { "yes" } else { "no" })),
+        Value::Bool(b) => out.push_str(&format!(
+            "{}{}: {}\n",
+            indent,
+            humanize_key(key),
+            if b { "yes" } else { "no" }
+        )),
         Value::Number(n) => out.push_str(&format!("{}{}: {}\n", indent, humanize_key(key), n)),
         Value::String(s) => out.push_str(&format!("{}{}: {}\n", indent, humanize_key(key), s)),
     }

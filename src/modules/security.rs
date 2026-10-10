@@ -36,21 +36,48 @@ pub fn inspect(rep: &mut ModuleReport) {
     data.insert("ptrace_scope".into(), json!(yama));
     data.insert("modules_disabled".into(), json!(modprobe));
 
-    if kptr != "2" { rep.warning("kptr_restrict < 2".to_string()); }
-    if dmesg != "1" { rep.info("dmesg readable by users (dmesg_restrict=0)".to_string()); }
-    if yama != "2" && yama != "3" { rep.info("ptrace_scope < 2 allows process inspection".to_string()); }
-    if perf_paranoid != "2" && perf_paranoid != "3" { rep.info("perf_event_paranoid < 2".to_string()); }
+    if kptr != "2" {
+        rep.warning("kptr_restrict < 2".to_string());
+    }
+    if dmesg != "1" {
+        rep.info("dmesg readable by users (dmesg_restrict=0)".to_string());
+    }
+    if yama != "2" && yama != "3" {
+        rep.info("ptrace_scope < 2 allows process inspection".to_string());
+    }
+    if perf_paranoid != "2" && perf_paranoid != "3" {
+        rep.info("perf_event_paranoid < 2".to_string());
+    }
 
     let failed_logins = count_failed_logins();
     data.insert("failed_logins_journal".into(), json!(failed_logins));
     if failed_logins > 100 {
-        rep.warning(format!("{} failed login attempts since boot", failed_logins));
+        rep.warning(format!(
+            "{} failed login attempts since boot",
+            failed_logins
+        ));
     }
 
     let listening_services = listen_services();
     data.insert("listening_services".into(), json!(listening_services.len()));
-    data.insert("listening_local".into(), json!(listening_services.iter().filter(|l| l.get("bind").map(|b| b == "0.0.0.0" || b == "::" || b == "*").unwrap_or(false)).count()));
-    data.insert("listening_list".into(), json!(listening_services.iter().take(20).cloned().collect::<Vec<_>>()));
+    data.insert(
+        "listening_local".into(),
+        json!(listening_services
+            .iter()
+            .filter(|l| l
+                .get("bind")
+                .map(|b| b == "0.0.0.0" || b == "::" || b == "*")
+                .unwrap_or(false))
+            .count()),
+    );
+    data.insert(
+        "listening_list".into(),
+        json!(listening_services
+            .iter()
+            .take(20)
+            .cloned()
+            .collect::<Vec<_>>()),
+    );
 
     let ssh_root = check_ssh_root();
     data.insert("ssh_root_login".into(), json!(ssh_root));
@@ -58,12 +85,13 @@ pub fn inspect(rep: &mut ModuleReport) {
         rep.warning("SSH root login permitted".to_string());
     }
 
-    let sudo_users = read_first_line("/etc/sudoers").map(|_| {
-        run("getent", &["group", "sudo"]).unwrap_or_default()
-    }).unwrap_or_default();
+    let sudo_users = read_first_line("/etc/sudoers")
+        .map(|_| run("getent", &["group", "sudo"]).unwrap_or_default())
+        .unwrap_or_default();
     let _ = sudo_users;
 
-    let uptodate = read_first_line("/var/lib/update-notifier/updates-available").unwrap_or_default();
+    let uptodate =
+        read_first_line("/var/lib/update-notifier/updates-available").unwrap_or_default();
     data.insert("pending_updates".into(), json!(uptodate));
 
     rep.data = Value::Object(data);
@@ -72,9 +100,18 @@ pub fn inspect(rep: &mut ModuleReport) {
 
 fn count_failed_logins() -> u64 {
     if which("journalctl") {
-        run("journalctl", &["-q", "--facility=authpriv", "--grep=Failed", "--no-pager", "--output=cat"])
-            .map(|s| s.lines().count() as u64)
-            .unwrap_or(0)
+        run(
+            "journalctl",
+            &[
+                "-q",
+                "--facility=authpriv",
+                "--grep=Failed",
+                "--no-pager",
+                "--output=cat",
+            ],
+        )
+        .map(|s| s.lines().count() as u64)
+        .unwrap_or(0)
     } else {
         0
     }
@@ -82,11 +119,15 @@ fn count_failed_logins() -> u64 {
 
 fn listen_services() -> Vec<Value> {
     let mut out = Vec::new();
-    if !which("ss") { return out; }
+    if !which("ss") {
+        return out;
+    }
     let lines = run_lines("ss", &["-tulnH"]);
     for line in &lines {
         let parts: Vec<&str> = line.split_whitespace().collect();
-        if parts.len() < 5 { continue; }
+        if parts.len() < 5 {
+            continue;
+        }
         let proto = parts[0];
         let local = parts[4];
         let (bind, port) = match local.rsplit_once(':') {
@@ -104,7 +145,11 @@ fn check_ssh_root() -> String {
             let l = line.trim();
             if l.starts_with("PermitRootLogin") && !l.starts_with("PermitRootLogin#") {
                 let val = l.split_whitespace().nth(1).unwrap_or("yes");
-                return if val == "yes" { "yes".into() } else { "no".into() };
+                return if val == "yes" {
+                    "yes".into()
+                } else {
+                    "no".into()
+                };
             }
         }
     }

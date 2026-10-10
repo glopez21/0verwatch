@@ -18,7 +18,11 @@ pub struct ModuleReport {
 
 impl ModuleReport {
     pub fn new(data: Value) -> Self {
-        ModuleReport { data, findings: Vec::new(), score: None }
+        ModuleReport {
+            data,
+            findings: Vec::new(),
+            score: None,
+        }
     }
 
     pub fn critical(&mut self, msg: impl Into<String>) {

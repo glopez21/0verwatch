@@ -10,20 +10,22 @@ pub fn inspect(rep: &mut ModuleReport) {
     if let Ok(entries) = std::fs::read_dir("/sys/class/net") {
         for e in entries.flatten() {
             let name = e.file_name().to_string_lossy().to_string();
-            if name == "lo" { continue; }
+            if name == "lo" {
+                continue;
+            }
             let mut entry = serde_json::Map::new();
             entry.insert("interface".into(), json!(name));
             let carrier = read_first_line(&format!("/sys/class/net/{}/carrier", name))
-                .map(|s| s == "1").unwrap_or(false);
+                .map(|s| s == "1")
+                .unwrap_or(false);
             entry.insert("link_up".into(), json!(carrier));
-            let speed = read_first_line(&format!("/sys/class/net/{}/speed", name))
-                .unwrap_or_default();
+            let speed =
+                read_first_line(&format!("/sys/class/net/{}/speed", name)).unwrap_or_default();
             entry.insert("speed_mbps".into(), json!(speed));
-            let mtu = read_first_line(&format!("/sys/class/net/{}/mtu", name))
-                .unwrap_or_default();
+            let mtu = read_first_line(&format!("/sys/class/net/{}/mtu", name)).unwrap_or_default();
             entry.insert("mtu".into(), json!(mtu));
-            let mac = read_first_line(&format!("/sys/class/net/{}/address", name))
-                .unwrap_or_default();
+            let mac =
+                read_first_line(&format!("/sys/class/net/{}/address", name)).unwrap_or_default();
             entry.insert("mac".into(), json!(mac));
 
             let (rx_bytes, tx_bytes, rx_errs, tx_errs, rx_drops, tx_drops) = read_dev_stat(&name);
@@ -35,7 +37,12 @@ pub fn inspect(rep: &mut ModuleReport) {
             entry.insert("tx_drops".into(), json!(tx_drops));
 
             if rx_errs + tx_errs + rx_drops + tx_drops > 100 {
-                rep.warning(format!("{}: high error/drop count ({} err, {} drop)", name, rx_errs + tx_errs, rx_drops + tx_drops));
+                rep.warning(format!(
+                    "{}: high error/drop count ({} err, {} drop)",
+                    name,
+                    rx_errs + tx_errs,
+                    rx_drops + tx_drops
+                ));
             }
             ifaces.push(Value::Object(entry));
         }
@@ -45,14 +52,22 @@ pub fn inspect(rep: &mut ModuleReport) {
     let tcp = parse_netstat("/proc/net/tcp");
     let tcp6 = parse_netstat("/proc/net/tcp6");
     data.insert("tcp_connections".into(), json!(tcp.total + tcp6.total));
-    data.insert("tcp_states".into(), json!({
-        "ESTABLISHED": tcp.established + tcp6.established,
-        "LISTEN": tcp.listen + tcp6.listen,
-        "TIME_WAIT": tcp.time_wait + tcp6.time_wait,
-        "CLOSE_WAIT": tcp.close_wait + tcp6.close_wait,
-    }));
+    data.insert(
+        "tcp_states".into(),
+        json!({
+            "ESTABLISHED": tcp.established + tcp6.established,
+            "LISTEN": tcp.listen + tcp6.listen,
+            "TIME_WAIT": tcp.time_wait + tcp6.time_wait,
+            "CLOSE_WAIT": tcp.close_wait + tcp6.close_wait,
+        }),
+    );
 
-    let listening: Vec<Value> = tcp.listening.iter().chain(tcp6.listening.iter()).cloned().collect();
+    let listening: Vec<Value> = tcp
+        .listening
+        .iter()
+        .chain(tcp6.listening.iter())
+        .cloned()
+        .collect();
     data.insert("listening_ports".into(), json!(listening));
 
     let retrans = parse_tcp_retrans();
@@ -76,9 +91,15 @@ pub fn inspect(rep: &mut ModuleReport) {
         }
     }
 
-    let dns = read_first_line("/etc/resolv.conf").as_deref().map(|s| {
-        s.lines().filter(|l| l.starts_with("nameserver")).filter_map(|l| l.split_whitespace().nth(1).map(|x| x.to_string())).collect::<Vec<_>>()
-    }).unwrap_or_default();
+    let dns = read_first_line("/etc/resolv.conf")
+        .as_deref()
+        .map(|s| {
+            s.lines()
+                .filter(|l| l.starts_with("nameserver"))
+                .filter_map(|l| l.split_whitespace().nth(1).map(|x| x.to_string()))
+                .collect::<Vec<_>>()
+        })
+        .unwrap_or_default();
     data.insert("dns_resolvers".into(), json!(dns));
 
     rep.data = Value::Object(data);
@@ -95,19 +116,34 @@ struct TcpSummary {
 }
 
 fn parse_netstat(path: &str) -> TcpSummary {
-    let mut s = TcpSummary { total: 0, established: 0, listen: 0, time_wait: 0, close_wait: 0, listening: Vec::new() };
+    let mut s = TcpSummary {
+        total: 0,
+        established: 0,
+        listen: 0,
+        time_wait: 0,
+        close_wait: 0,
+        listening: Vec::new(),
+    };
     if let Ok(content) = std::fs::read_to_string(path) {
         for (i, line) in content.lines().enumerate() {
-            if i < 1 { continue; }
+            if i < 1 {
+                continue;
+            }
             let cols: Vec<&str> = line.split_whitespace().collect();
-            if cols.len() < 4 { continue; }
+            if cols.len() < 4 {
+                continue;
+            }
             s.total += 1;
             let local = cols[1];
             let state = cols[3];
-            let port = u16::from_str_radix(&local.split(':').last().unwrap_or("0"), 16).unwrap_or(0);
+            let port =
+                u16::from_str_radix(local.split(':').next_back().unwrap_or("0"), 16).unwrap_or(0);
             match state {
                 "01" => s.established += 1,
-                "0A" => { s.listen += 1; s.listening.push(json!({"port": port, "proto": if path.contains("tcp6") { "tcp6" } else { "tcp" }})); },
+                "0A" => {
+                    s.listen += 1;
+                    s.listening.push(json!({"port": port, "proto": if path.contains("tcp6") { "tcp6" } else { "tcp" }}));
+                }
                 "06" => s.time_wait += 1,
                 "08" => s.close_wait += 1,
                 _ => {}
@@ -118,13 +154,16 @@ fn parse_netstat(path: &str) -> TcpSummary {
 }
 
 fn read_dev_stat(name: &str) -> (u64, u64, u64, u64, u64, u64) {
-    let content = read_file(&format!("/proc/net/dev")).unwrap_or_default();
+    let content = read_file("/proc/net/dev").unwrap_or_default();
     for line in content.lines() {
         if let Some(rest) = line.split(':').nth(1) {
             let colon_idx = line.find(':').unwrap_or(0);
             let iface: &str = line[..colon_idx].trim();
             if iface == name {
-                let p: Vec<u64> = rest.split_whitespace().filter_map(|x| x.parse().ok()).collect();
+                let p: Vec<u64> = rest
+                    .split_whitespace()
+                    .filter_map(|x| x.parse().ok())
+                    .collect();
                 if p.len() >= 16 {
                     return (p[0], p[8], p[2], p[10], p[3], p[11]);
                 }
@@ -139,8 +178,16 @@ fn parse_tcp_retrans() -> u64 {
     let mut in_tcp = false;
     for line in content.lines() {
         if line.starts_with("Tcp:") {
-            if !in_tcp { in_tcp = true; continue; }
-            let parts: Vec<&str> = line.split(':').nth(1).unwrap_or("").split_whitespace().collect();
+            if !in_tcp {
+                in_tcp = true;
+                continue;
+            }
+            let parts: Vec<&str> = line
+                .split(':')
+                .nth(1)
+                .unwrap_or("")
+                .split_whitespace()
+                .collect();
             if parts.len() > 12 {
                 return parts[12].parse().unwrap_or(0);
             }

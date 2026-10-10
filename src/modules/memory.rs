@@ -19,8 +19,16 @@ pub fn inspect(rep: &mut ModuleReport, thresholds: &crate::config::ThresholdConf
     let swap_total = system.total_swap();
     let swap_used = system.used_swap();
 
-    let pct = if total > 0 { (used as f64 / total as f64) * 100.0 } else { 0.0 };
-    let swap_pct = if swap_total > 0 { (swap_used as f64 / swap_total as f64) * 100.0 } else { 0.0 };
+    let pct = if total > 0 {
+        (used as f64 / total as f64) * 100.0
+    } else {
+        0.0
+    };
+    let swap_pct = if swap_total > 0 {
+        (swap_used as f64 / swap_total as f64) * 100.0
+    } else {
+        0.0
+    };
 
     data.insert("total".into(), json!(total));
     data.insert("used".into(), json!(used));
@@ -33,7 +41,10 @@ pub fn inspect(rep: &mut ModuleReport, thresholds: &crate::config::ThresholdConf
     data.insert("swap_pct".into(), json!((swap_pct * 10.0).round() / 10.0));
     data.insert("total_human".into(), json!(format_bytes(total as f64)));
     data.insert("used_human".into(), json!(format_bytes(used as f64)));
-    data.insert("available_human".into(), json!(format_bytes(available as f64)));
+    data.insert(
+        "available_human".into(),
+        json!(format_bytes(available as f64)),
+    );
 
     let meminfo = &meminfo_raw;
     if let Some(hp) = meminfo.get("HugePages_Total") {
@@ -72,9 +83,15 @@ pub fn inspect(rep: &mut ModuleReport, thresholds: &crate::config::ThresholdConf
     }
 
     if pct > thresholds.mem_critical {
-        rep.critical(format!("Memory usage {:.1}% exceeds critical threshold {:.0}%", pct, thresholds.mem_critical));
+        rep.critical(format!(
+            "Memory usage {:.1}% exceeds critical threshold {:.0}%",
+            pct, thresholds.mem_critical
+        ));
     } else if pct > thresholds.mem_warning {
-        rep.warning(format!("Memory usage {:.1}% exceeds warning threshold {:.0}%", pct, thresholds.mem_warning));
+        rep.warning(format!(
+            "Memory usage {:.1}% exceeds warning threshold {:.0}%",
+            pct, thresholds.mem_warning
+        ));
     }
 
     if swap_total > 0 && swap_pct > 80.0 {
@@ -88,13 +105,19 @@ pub fn inspect(rep: &mut ModuleReport, thresholds: &crate::config::ThresholdConf
     if let Some(p) = &psi.memory {
         if let Some(avg10) = p.get("avg10").and_then(|v| v.as_f64()) {
             if avg10 > 30.0 {
-                rep.warning(format!("Memory pressure high (avg10 = {:.1}% over last 10s)", avg10));
+                rep.warning(format!(
+                    "Memory pressure high (avg10 = {:.1}% over last 10s)",
+                    avg10
+                ));
             }
         }
     }
 
     if !edac.is_empty() {
-        let total_err: u64 = edac.iter().filter_map(|e| e.get("count").and_then(|v| v.as_u64())).sum();
+        let total_err: u64 = edac
+            .iter()
+            .filter_map(|e| e.get("count").and_then(|v| v.as_u64()))
+            .sum();
         if total_err > 0 {
             rep.critical(format!("{} EDAC memory error(s) detected", total_err));
         }
@@ -110,7 +133,7 @@ fn parse_meminfo() -> HashMap<String, u64> {
         for line in s.lines() {
             if let Some((k, rest)) = line.split_once(':') {
                 let key = k.trim().to_string();
-                let val: Option<u64> = rest.trim().split_whitespace().next().and_then(|x| x.parse().ok());
+                let val: Option<u64> = rest.split_whitespace().next().and_then(|x| x.parse().ok());
                 if let Some(v) = val {
                     out.insert(key, v);
                 }
@@ -125,10 +148,15 @@ fn count_oom_kills() -> u64 {
         return 0;
     }
     let lines = run_lines("dmesg", &["--color=never"]);
-    lines.iter().filter(|l| {
-        let lower = l.to_lowercase();
-        lower.contains("out of memory") || lower.contains("oom-kill") || lower.contains("oom_reaper")
-    }).count() as u64
+    lines
+        .iter()
+        .filter(|l| {
+            let lower = l.to_lowercase();
+            lower.contains("out of memory")
+                || lower.contains("oom-kill")
+                || lower.contains("oom_reaper")
+        })
+        .count() as u64
 }
 
 struct Psi {
@@ -154,7 +182,13 @@ fn read_psi_file(path: &str) -> Option<Value> {
         if parts.is_empty() {
             continue;
         }
-        let target = if parts[0] == "full" { &mut full } else if parts[0] == "some" { &mut some } else { continue };
+        let target = if parts[0] == "full" {
+            &mut full
+        } else if parts[0] == "some" {
+            &mut some
+        } else {
+            continue;
+        };
         for kv in &parts[1..] {
             if let Some((k, v)) = kv.split_once('=') {
                 let val: f64 = v.parse().unwrap_or(0.0);
@@ -174,9 +208,14 @@ fn read_edac() -> Vec<Value> {
         Ok(d) => d.flatten().map(|e| e.path()).collect(),
         Err(_) => Vec::new(),
     };
-    if dirs.is_empty() { return out; }
+    if dirs.is_empty() {
+        return out;
+    }
     for mc_dir in dirs {
-        let name = mc_dir.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+        let name = mc_dir
+            .file_name()
+            .map(|n| n.to_string_lossy().to_string())
+            .unwrap_or_default();
         let mut counts = HashMap::new();
         for counter in &["ce_count", "ue_count"] {
             let path = mc_dir.join("ce_count").with_file_name(counter);
@@ -187,7 +226,9 @@ fn read_edac() -> Vec<Value> {
         }
         let ce = counts.get("ce_count").copied().unwrap_or(0);
         let ue = counts.get("ue_count").copied().unwrap_or(0);
-        out.push(json!({"controller": name, "correctable": ce, "uncorrectable": ue, "count": ce + ue}));
+        out.push(
+            json!({"controller": name, "correctable": ce, "uncorrectable": ue, "count": ce + ue}),
+        );
     }
     out
 }

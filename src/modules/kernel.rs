@@ -43,7 +43,8 @@ pub fn inspect(rep: &mut ModuleReport) {
 
     let modules = read_lines("/proc/modules");
     let mod_count = modules.len();
-    let mod_names: Vec<String> = modules.iter()
+    let mod_names: Vec<String> = modules
+        .iter()
         .filter_map(|l| l.split_whitespace().next().map(|s| s.to_string()))
         .collect();
     data.insert("loaded_modules".into(), json!(mod_count));
@@ -57,24 +58,39 @@ pub fn inspect(rep: &mut ModuleReport) {
     data.insert("dmesg_samples".into(), json!(dmesg_critical.samples));
 
     if taint_num > 0 {
-        rep.critical(format!("Kernel is tainted (flags: {})", taint_flags.join(", ")));
+        rep.critical(format!(
+            "Kernel is tainted (flags: {})",
+            taint_flags.join(", ")
+        ));
     } else {
         rep.ok("Kernel not tainted".to_string());
     }
 
     if dmesg_critical.panics > 0 {
-        rep.critical(format!("{} kernel panic(s) in dmesg", dmesg_critical.panics));
+        rep.critical(format!(
+            "{} kernel panic(s) in dmesg",
+            dmesg_critical.panics
+        ));
     }
     if dmesg_critical.oops > 0 {
         rep.critical(format!("{} kernel oops(es) in dmesg", dmesg_critical.oops));
     }
     if dmesg_critical.errors > 10 {
-        rep.warning(format!("{} error-level kernel messages", dmesg_critical.errors));
+        rep.warning(format!(
+            "{} error-level kernel messages",
+            dmesg_critical.errors
+        ));
     } else if dmesg_critical.errors > 0 {
-        rep.info(format!("{} error-level kernel messages", dmesg_critical.errors));
+        rep.info(format!(
+            "{} error-level kernel messages",
+            dmesg_critical.errors
+        ));
     }
     if dmesg_critical.warnings > 20 {
-        rep.warning(format!("{} warning-level kernel messages", dmesg_critical.warnings));
+        rep.warning(format!(
+            "{} warning-level kernel messages",
+            dmesg_critical.warnings
+        ));
     }
 
     if kp_restrict == "0" {
@@ -105,7 +121,13 @@ struct DmesgScan {
 }
 
 fn scan_dmesg() -> DmesgScan {
-    let mut scan = DmesgScan { errors: 0, warnings: 0, oops: 0, panics: 0, samples: Vec::new() };
+    let mut scan = DmesgScan {
+        errors: 0,
+        warnings: 0,
+        oops: 0,
+        panics: 0,
+        samples: Vec::new(),
+    };
     let lines = if which("dmesg") {
         run_lines("dmesg", &["--color=never"])
     } else {
@@ -118,7 +140,11 @@ fn scan_dmesg() -> DmesgScan {
             if scan.samples.len() < 8 {
                 scan.samples.push(line.clone());
             }
-        } else if lower.contains("oops") || lower.contains(" call trace:") || lower.contains("dump_stack") || lower.contains("segfault") {
+        } else if lower.contains("oops")
+            || lower.contains(" call trace:")
+            || lower.contains("dump_stack")
+            || lower.contains("segfault")
+        {
             scan.oops += 1;
             if scan.samples.len() < 8 {
                 scan.samples.push(line.clone());
@@ -134,8 +160,6 @@ fn scan_dmesg() -> DmesgScan {
     }
     scan
 }
-
-
 
 fn decode_taint(n: u64, _ver: &str) -> Vec<String> {
     let flags = [

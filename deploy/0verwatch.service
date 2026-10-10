@@ -1,0 +1,22 @@
+[Unit]
+Description=0verwatch host health survey (telemetry)
+Documentation=https://github.com/w01f/0verwatch
+After=network-online.target
+Wants=network-online.target
+
+[Service]
+Type=oneshot
+ExecStart=/usr/local/bin/0verwatch --json-pretty
+EnvironmentFile=-/etc/0verwatch/eventflow.env
+# Health score is reported in the payload/exit code; treat degraded (1) and
+# critical (2) as successful runs so the timer is not disabled by failures.
+SuccessExitStatus=1 2
+User=root
+Nice=10
+IOSchedulingClass=best-effort
+IOSchedulingPriority=6
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+PrivateTmp=true
+ReadWritePaths=/etc/0verwatch
