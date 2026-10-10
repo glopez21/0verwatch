@@ -17,7 +17,9 @@ anyhow = "1"
 sysinfo = "0.32"
 toml = "0.8"
 libc = "0.2"
-reqwest = { version = "0.12", features = ["blocking", "json"] }
+# rustls (not native-tls/OpenSSL) keeps the binary portable and easy to
+# cross-compile to a static musl build for the VPS fleet.
+reqwest = { version = "0.12", default-features = false, features = ["blocking", "json", "rustls-tls"] }
 
 [profile.release]
 opt-level = 3
